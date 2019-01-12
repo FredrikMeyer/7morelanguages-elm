@@ -1,30 +1,40 @@
-module Car exposing (..)
+module Car exposing (main)
 
-import Html exposing (..)
-import Color exposing (..)
 import Collage exposing (..)
-import Element exposing (..)
+import Collage.Layout as Layout exposing (stack)
+import Collage.Render as Render exposing (svg)
+import Color exposing (..)
+import Html exposing (Html)
 
 
-carBottom =
-    filled black (rect 160 50)
-
-
-carTop =
-    filled darkBlue (rect 100 60)
-
-
-tire =
-    filled red (circle 24)
-
-
+main : Html msg
 main =
-    toHtml
-        (collage 300
-            300
-            [ carTop |> moveY 30
-            , carBottom
-            , tire |> move ( -40, -28 )
-            , tire |> move ( 40, -28 )
-            ]
-        )
+    let
+        windows =
+            rectangle 100 60
+                |> filled (uniform darkBlue)
+                |> shiftY 30
+
+        body =
+            rectangle 160 50
+                |> filled (uniform black)
+
+        tire =
+            circle 24
+                |> filled (uniform red)
+
+        leftTire =
+            tire
+                |> shift ( -40, -28 )
+
+        rightTire =
+            tire
+                |> shift ( 40, -28 )
+    in
+    Layout.stack
+        [ rightTire
+        , leftTire
+        , body
+        , windows
+        ]
+        |> Render.svg
