@@ -1,29 +1,45 @@
-module Paddle exposing (..)
+module Paddle exposing (Model, Msg(..), init, main, subscriptions, update, view)
 
-import Html exposing (..)
-import Color exposing (..)
+import Browser
+import Browser.Dom exposing (Viewport, getViewport)
+import Browser.Events
 import Collage exposing (..)
-import Element exposing (..)
-import Mouse exposing (Position)
-import Window exposing (Size)
-import Task exposing (..)
-import Maybe exposing (..)
+import Collage.Layout as Layout exposing (stack)
+import Collage.Render as Render exposing (svg)
+import Color exposing (..)
+import Html exposing (Html)
+import Html.Attributes
+import Json.Decode as Decode
+import Task
 
 
-type alias Model =
-    { size : Maybe Size
-    , xPos : Int
+type alias MousePosition =
+    { x : Float
+    , y : Float
+    }
+
+
+type alias Size =
+    { width : Float
+    , height : Float
     }
 
 
 type Msg
-    = MousePos Mouse.Position
-    | SetWindowSize Window.Size
+    = GetViewport Viewport
+    | MouseMoved MousePosition
 
 
+type alias Model =
+    { size : Maybe Size
+    , xPosition : Float
+    }
+
+
+main : Program Decode.Value Model Msg
 main =
-    Html.program
-        { init = init
+    Browser.document
+        { init = always init
         , view = view
         , update = update
         , subscriptions = subscriptions
@@ -32,64 +48,68 @@ main =
 
 init : ( Model, Cmd Msg )
 init =
-    let
-        windowSize =
-            Task.perform SetWindowSize Window.size
-    in
-        ( { size = Nothing
-          , xPos = 0
-          }
-        , windowSize
-        )
+    ( { size = Nothing
+      , xPosition = 0
+      }
+    , Cmd.batch
+        [ Task.perform GetViewport getViewport ]
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        MousePos pos ->
-            ( { model | xPos = pos.x }, Cmd.none )
+        GetViewport { viewport } ->
+            ( { model
+                | size =
+                    Just <|
+                        Size viewport.width viewport.height
+              }
+            , Cmd.none
+            )
 
-        SetWindowSize size ->
-            ( { model | size = Just size }, Cmd.none )
+        MouseMoved position ->
+            ( { model | xPosition = position.x }, Cmd.none )
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document msg
 view model =
-    case model.size of
-        Just size ->
-            let
-                width =
-                    size.width
+    { title = "HEI"
+    , body =
+        case model.size of
+            Just size ->
+                [ display ( size.width, size.height ) model.xPosition
+                ]
 
-                height =
-                    size.height
+            Nothing ->
+                [ Html.text "Loading..." ]
+    }
 
-                xPos =
-                    model.xPos
-            in
-                toHtml <| display ( width, height ) xPos
 
-        Nothing ->
-            Html.text "Loading..."
+decodePosition : Decode.Decoder MousePosition
+decodePosition =
+    Decode.map2 MousePosition
+        (Decode.field "clientX" Decode.float)
+        (Decode.field "clientY" Decode.float)
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Mouse.moves (\p -> MousePos p)
-        , Window.resizes (\s -> SetWindowSize s)
-        ]
+    Sub.map MouseMoved <| Browser.Events.onMouseMove decodePosition
 
 
-drawPaddle : Int -> Int -> Int -> Form
-drawPaddle w h x =
-    filled black (rect 80 10)
-        |> moveX (toFloat x - toFloat w / 2)
-        |> moveY (toFloat h * -0.45)
-
-
-display : ( Int, Int ) -> Int -> Element
+display : ( Float, Float ) -> Float -> Html msg
 display ( w, h ) x =
-    collage w
-        h
-        [ drawPaddle w h x ]
+    Layout.stack
+        [ drawPaddle w h x
+        , rectangle (w - 50) (h - 50) |> filled (uniform white)
+        ]
+        |> Render.svg
+
+
+drawPaddle : Float -> Float -> Float -> Collage msg
+drawPaddle w h x =
+    rectangle 80 10
+        |> filled (uniform black)
+        |> shiftX (x - w / 2)
+        |> shiftY (h * -0.45)
