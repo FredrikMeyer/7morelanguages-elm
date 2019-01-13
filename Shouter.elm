@@ -1,13 +1,14 @@
-module Shouter exposing (..)
+module Shouter exposing (Model, Msg(..), main, shout, update, view)
 
-import Html exposing (Html, Attribute, div, input, text)
+import Browser
+import Html exposing (Attribute, Html, div, input, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 
 
 main =
-    Html.beginnerProgram
-        { model = model
+    Browser.sandbox
+        { init = init
         , view = view
         , update = update
         }
@@ -17,13 +18,13 @@ type alias Model =
     { message : String }
 
 
-model : Model
-model =
-    Model ""
-
-
 type Msg
     = Message String
+
+
+init : Model
+init =
+    { message = "" }
 
 
 update : Msg -> Model -> Model
@@ -41,17 +42,18 @@ view model =
             , onInput Message
             ]
             []
-        , div [ textStyle ] [ text (shout model.message) ]
+        , div
+            [ style "color" "red"
+            , style "font-size" "40px"
+            ]
+            [ text (shout model.message) ]
         ]
-
-
-textStyle =
-    style [ ( "color", "red" ), ( "font-size", "40px" ) ]
 
 
 shout : String -> String
 shout m =
     if String.isEmpty m then
         ""
+
     else
-        (String.toUpper m) ++ "!!"
+        String.toUpper m ++ "!!"
